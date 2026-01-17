@@ -1,45 +1,45 @@
 # MCID: Meta-learning Cross-condition Invariant Diagnosis
 
-这是一个使用元学习进行跨工况故障诊断的项目。
+This is a project that leverages meta-learning for cross-condition fault diagnosis.
 
-## 项目结构
+## Project Structure
 
 ```
 .
-├── configs/              # 配置文件
+├── configs/              # Configuration files
 │   ├── teacher.yaml
 │   └── mcid.yaml
-├── data/                 # 数据目录 (需要自行准备)
+├── data/                 # Data directory (to be prepared by the user)
 │   └── gearbox/
 │       ├── WC1/
 │       ├── ...
 │       └── WC9/
-├── output/               # 模型输出目录
-├── scripts/              # 训练脚本
-│   ├── train_teacher.py  # 训练教师模型
-│   └── train_main.py     # MCID 元学习训练
-└── src/                  # 源代码
+├── output/               # Model output directory
+├── scripts/              # Training scripts
+│   ├── train_teacher.py  # Train the teacher model
+│   └── train_main.py     # MCID meta-learning training
+└── src/                  # Source code
     ├── data/
     ├── models/
     └── core/
 ```
 
-## 使用方法
+## Usage
 
-### 1. 训练教师模型
+### 1. Train the Teacher Model
 
-首先，在单一工况（如 WC1）上训练一个教师模型。
+First, train a teacher model on a single operating condition (e.g., WC1):
 
 ```bash
 python scripts/train_teacher.py --config configs/teacher.yaml
 ```
 
-### 2. 运行 MCID 元学习
+### 2. Run MCID Meta-learning
 
-使用预训练好的教师模型，进行跨工况元学习。
+Use the pre-trained teacher model to perform cross-condition meta-learning:
 
 ```bash
 python scripts/train_main.py --config configs/mcid.yaml
 ```
 
-模型和结果将保存在 `ckpts/` 目录下。
+Models and results will be saved in the `ckpts/` directory.

@@ -31,6 +31,47 @@ def set_seed(seed):
         torch.cuda.manual_seed_all(seed)
 
 
+def load_data_split(config):
+    """
+    根据配置文件加载数据:
+    1. source_iter:  Teacher 专用 (来自 source_wc / "WC1")
+    2. target_iters: Student 专用 (来自 target_wcs / ["WC2", "WC3"])
+    """
+    data_cfg = config['data']
+    batch_size = config['training']['batch_size']
+    
+    # === 1. 加载 Teacher 专用的源域数据 (Source WC) ===
+    source_wc = data_cfg['source_wc']  # e.g., "WC1"
+    print(f"[Data] Teacher 加载源工况: {source_wc}")
+    
+    source_path = os.path.join(data_cfg['root_dir'], source_wc, 'train')
+    # 检查路径是否存在
+    if not os.path.exists(source_path):
+        raise FileNotFoundError(f"源工况路径不存在: {source_path}")
+        
+    source_loader = get_dataloader(source_path, batch_size, shuffle=True)
+    source_iter = get_infinite_loader(source_loader)
+    
+    # === 2. 加载 Student 用的目标工况数据 (Target WCs / Attacker Pool) ===
+    target_iters = {}
+    target_wcs = data_cfg['target_wcs'] # e.g., ["WC2", "WC3"]
+    print(f"[Data] Student 加载目标工况 (作为攻击): {target_wcs}")
+    
+    for wc in target_wcs:
+        path = os.path.join(data_cfg['root_dir'], wc, 'train')
+        if not os.path.exists(path):
+            print(f"警告: 目标工况路径不存在，跳过: {path}")
+            continue
+            
+        loader = get_dataloader(path, batch_size, shuffle=True)
+        target_iters[wc] = get_infinite_loader(loader)
+        
+    if len(target_iters) < 2:
+        print("警告: target_wcs 数量少于2，元学习无法进行 Support/Query 划分！")
+        
+    return source_iter, target_iters
+
+
 def load_teacher(config, device):
     """加载冻结的教师模型"""
     cfg = config['model']
@@ -88,29 +129,55 @@ def load_all_wc_data(config):
     return wc_iters
 
 
-def compute_loss(encoder_s, classifier, encoder_t, decoder_t, x, labels, config):
+# def compute_loss(encoder_s, classifier, encoder_t, decoder_t, x, labels, config):
+def compute_loss(encoder_s, classifier, encoder_t, decoder_t, x_s,y_s,x_t,y_t, config):
     """计算通用损失函数 (L_AC + L_CC + L_LC)"""
     loss_cfg = config['loss']
     
     # 1. 学生前向传播
-    feat_s = encoder_s(x)
+    feat_s = encoder_s(x_s)
     logits = classifier(feat_s)
     
     # 2. 教师前向传播 (作为Ground Truth，不传梯度)
     with torch.no_grad():
-        feat_t = encoder_t(x).detach()
+        feat_t = encoder_t(x_t).detach()
     
-    # L_AC: 对抗/特征一致性
-    l_ac = nn.MSELoss()(feat_s, feat_t)
+    # # L_AC: 对抗/特征一致性
+    # l_ac = nn.MSELoss()(feat_s, feat_t)
+        # === 2. L_AC: Adversarial/Alignment Consistency (核心修改) ===
+    # 既然数据不成对，我们对齐"同类数据的特征中心"
+    l_ac = torch.tensor(0.0, device=x_s.device)
+    valid_classes = 0
+    
+    # 获取当前 Batch 中两边都存在的类别
+    classes_s = torch.unique(y_s)
+    classes_t = torch.unique(y_t)
+    # 取交集，只对齐两边都有的类别
+    common_classes = [c for c in classes_s if c in classes_t]
+    
+    for c in common_classes:
+        # 计算 Student 在该类别下的特征均值 (Prototype)
+        proto_s = feat_s[y_s == c].mean(dim=0)
+        # 计算 Teacher 在该类别下的特征均值
+        proto_t = feat_t[y_t == c].mean(dim=0)
+        
+        # 最小化两者的距离
+        l_ac += nn.MSELoss()(proto_s, proto_t)
+        valid_classes += 1
+        
+    # 如果当前 Batch 没有任何重叠类别 (概率很小)，则 loss 为 0
+    if valid_classes > 0:
+        l_ac = l_ac / valid_classes
+    
     
     # L_CC: 循环一致性 (特征 -> 教师解码 -> 教师编码)
-    x_recon = decoder_t(feat_s, target_length=x.shape[-1])
+    x_recon = decoder_t(feat_s, target_length=x_s.shape[-1])
     with torch.no_grad():
         feat_cycle = encoder_t(x_recon).detach()
-    l_cc = nn.MSELoss()(feat_cycle, feat_s)
+    l_cc = nn.MSELoss()(feat_cycle, feat_t)
     
     # L_LC: 标签一致性
-    l_lc = nn.CrossEntropyLoss()(logits, labels)
+    l_lc = nn.CrossEntropyLoss()(logits, y_s)
     
     total = loss_cfg['lambda_ac'] * l_ac + loss_cfg['lambda_cc'] * l_cc + loss_cfg['lambda_lc'] * l_lc
     return total, {'ac': l_ac.item(), 'cc': l_cc.item(), 'lc': l_lc.item()}
@@ -135,49 +202,125 @@ def inner_update(encoder, loss, inner_lr, first_order=True):
     return encoder_prime
 
 
-def meta_train_step(wc_iters, encoder_s, classifier, encoder_t, decoder_t, config, device):
+# def meta_train_step(wc_iters, encoder_s, classifier, encoder_t, decoder_t, config, device):
+#     """
+#     标准的元学习步骤 (DG-Meta / MLDG 风格):
+#     1. Task Sampling: 将工况划分为 Meta-Train (Support) 和 Meta-Test (Query)
+#     2. Inner Loop: 在 Support Set 上计算损失并获得临时参数 θ'
+#     3. Outer Loop: 在 Query Set 上使用 θ' 计算损失，并结合 Support Loss 进行最终更新
+#     """
+#     meta_cfg = config['meta']
+#     wc_list = list(wc_iters.keys())
+    
+#     # 随机划分工况任务
+#     random.shuffle(wc_list)
+#     # N-1个工况用于内循环更新 (模拟已知工况)
+#     support_wcs = wc_list[:-1]
+#     # 1个工况用于外循环测试 (模拟未知工况)
+#     query_wc = wc_list[-1]
+    
+#     # ========== 1. Meta-Train / Support Set 阶段 ==========
+#     # 从支持集工况中随机抽取一个 Batch
+#     train_wc = random.choice(support_wcs)
+#     x_sup, y_sup = next(wc_iters[train_wc])
+#     x_sup, y_sup = x_sup.to(device), y_sup.to(device)
+    
+#     # 计算 Support Loss
+#     l_sup, _ = compute_loss(encoder_s, classifier, encoder_t, decoder_t, x_sup, y_sup, config)
+    
+#     # 获取临时参数 θ' (Fast Weights)
+#     encoder_prime = inner_update(encoder_s, l_sup, meta_cfg['inner_lr'], meta_cfg['first_order'])
+    
+#     # ========== 2. Meta-Test / Query Set 阶段 ==========
+#     # 从查询集工况中抽取一个 Batch
+#     x_qry, y_qry = next(wc_iters[query_wc])
+#     x_qry, y_qry = x_qry.to(device), y_qry.to(device)
+    
+#     # 使用临时参数 θ' 计算 Query Loss
+#     # 注意：这里使用 encoder_prime (θ')，但分类器 classifier 共享 (或视具体算法而定)
+#     l_qry, metrics = compute_loss(encoder_prime, classifier, encoder_t, decoder_t, x_qry, y_qry, config)
+    
+#     # ========== 3. 最终 Meta Loss ==========
+#     # MLDG 常用: Total Loss = L_support + beta * L_query
+#     l_total = l_sup + meta_cfg['beta'] * l_qry
+    
+#     return l_total, l_sup.item(), l_qry.item()
+
+
+
+def meta_train_step(source_iter, target_iters, encoder_s, classifier, encoder_t, decoder_t, config, device):
     """
-    标准的元学习步骤 (DG-Meta / MLDG 风格):
-    1. Task Sampling: 将工况划分为 Meta-Train (Support) 和 Meta-Test (Query)
-    2. Inner Loop: 在 Support Set 上计算损失并获得临时参数 θ'
-    3. Outer Loop: 在 Query Set 上使用 θ' 计算损失，并结合 Support Loss 进行最终更新
+    source_iter:  对应 config['source_wc'] (WC1)
+    target_iters: 对应 config['target_wcs'] (WC2, WC3)
     """
     meta_cfg = config['meta']
-    wc_list = list(wc_iters.keys())
     
-    # 随机划分工况任务
+    # 获取所有目标工况名称
+    wc_list = list(target_iters.keys())
+    
+    # === 1. 任务划分 (Task Sampling) ===
+    # 必须至少有2个工况才能做元学习划分 (Unknown vs Known)
+    # 如果只有1个工况，代码会报错，建议在 load_data_split 里检查
     random.shuffle(wc_list)
-    # N-1个工况用于内循环更新 (模拟已知工况)
-    support_wcs = wc_list[:-1]
-    # 1个工况用于外循环测试 (模拟未知工况)
-    query_wc = wc_list[-1]
     
-    # ========== 1. Meta-Train / Support Set 阶段 ==========
-    # 从支持集工况中随机抽取一个 Batch
-    train_wc = random.choice(support_wcs)
-    x_sup, y_sup = next(wc_iters[train_wc])
-    x_sup, y_sup = x_sup.to(device), y_sup.to(device)
+    query_wc = wc_list[-1]       # 模拟未知攻击 (Unknown Attack)
+    support_wcs = wc_list[:-1]   # 模拟已知攻击 (Known Attacks)
     
-    # 计算 Support Loss
-    l_sup, _ = compute_loss(encoder_s, classifier, encoder_t, decoder_t, x_sup, y_sup, config)
+    # === 2. Meta-Train / Support Set 阶段 ===
+    total_sup_loss = 0
     
-    # 获取临时参数 θ' (Fast Weights)
-    encoder_prime = inner_update(encoder_s, l_sup, meta_cfg['inner_lr'], meta_cfg['first_order'])
+    # 遍历所有已知攻击工况
+    for wc in support_wcs:
+        # A. Student 获取当前攻击工况数据 (如 WC2)
+        x_s, y_s = next(target_iters[wc])
+        x_s, y_s = x_s.to(device), y_s.to(device)
+        
+        # B. Teacher 获取源工况数据 (WC1) - 作为对齐的 Anchor
+        x_t, y_t = next(source_iter)
+        x_t, y_t = x_t.to(device), y_t.to(device)
+        
+        # C. 计算损失 (使用基于类别的对齐)
+        l_step, _ = compute_loss(
+            encoder_s, classifier, encoder_t, decoder_t,
+            x_s, y_s, x_t, y_t, config
+        )
+        total_sup_loss += l_step
+
+    # 计算平均 Support Loss
+    if len(support_wcs) > 0:
+        total_sup_loss = total_sup_loss / len(support_wcs)
+    else:
+        # 极端情况：如果 target_wcs 只有1个，无法划分，这里会是0
+        # 为了代码不崩，直接用 query 做 support (退化为普通训练)
+        total_sup_loss = torch.tensor(0.0, device=device)
     
-    # ========== 2. Meta-Test / Query Set 阶段 ==========
-    # 从查询集工况中抽取一个 Batch
-    x_qry, y_qry = next(wc_iters[query_wc])
-    x_qry, y_qry = x_qry.to(device), y_qry.to(device)
+    # === 3. Inner Loop Update (获取临时参数 θ') ===
+    # 注意：如果 total_sup_loss 是 0 (例如 target_wcs 只有1个)，encoder_prime 就是 encoder_s
+    if isinstance(total_sup_loss, torch.Tensor) and total_sup_loss.item() != 0:
+        encoder_prime = inner_update(encoder_s, total_sup_loss, meta_cfg['inner_lr'], meta_cfg['first_order'])
+    else:
+        encoder_prime = encoder_s # 不更新
+
+    # === 4. Meta-Test / Query Set 阶段 ===
+    # A. Student 获取未知攻击工况数据 (如 WC3)
+    x_q_s, y_q_s = next(target_iters[query_wc])
+    x_q_s, y_q_s = x_q_s.to(device), y_q_s.to(device)
     
-    # 使用临时参数 θ' 计算 Query Loss
-    # 注意：这里使用 encoder_prime (θ')，但分类器 classifier 共享 (或视具体算法而定)
-    l_qry, metrics = compute_loss(encoder_prime, classifier, encoder_t, decoder_t, x_qry, y_qry, config)
+    # B. Teacher 依然获取源工况数据 (WC1)
+    x_q_t, y_q_t = next(source_iter)
+    x_q_t, y_q_t = x_q_t.to(device), y_q_t.to(device)
     
-    # ========== 3. 最终 Meta Loss ==========
-    # MLDG 常用: Total Loss = L_support + beta * L_query
-    l_total = l_sup + meta_cfg['beta'] * l_qry
+    # 计算 Query Loss (验证泛化能力)
+    l_qry, metrics = compute_loss(
+        encoder_prime, classifier, encoder_t, decoder_t,
+        x_q_s, y_q_s, x_q_t, y_q_t, config
+    )
     
-    return l_total, l_sup.item(), l_qry.item()
+    # === 5. 总损失组合 ===
+    # 最终更新使用: L_support + beta * L_query
+    l_total = total_sup_loss + meta_cfg['beta'] * l_qry
+    
+    return l_total, total_sup_loss.item() if isinstance(total_sup_loss, torch.Tensor) else 0, l_qry.item()
 
 
 def evaluate(encoder, classifier, config, device):
@@ -242,7 +385,13 @@ def main(config_path):
 
     
     # 数据加载 (使用无限迭代器，摒弃 source_loader)
-    wc_iters = load_all_wc_data(config)
+    # wc_iters = load_all_wc_data(config)
+    
+    
+    source_iter, target_iters = load_data_split(config)
+    
+    # 打印一下确认数据加载成功
+    print(f"数据加载完成。Source: 1个, Target: {len(target_iters)}个")
     
     # 优化器
     # params = list(encoder_s.parameters()) + list(classifier.parameters())
@@ -265,9 +414,27 @@ def main(config_path):
             optimizer.zero_grad()
             
             # 执行一步元训练
+            # loss, l_sup, l_qry = meta_train_step(
+            #     wc_iters,
+            #     encoder_s, classifier, encoder_t, decoder_t, config, device
+            # )
+            
+            # 可能少传了 device，或者因为换行导致 device 被漏掉了
+            
+            # loss.backward()
+            # optimizer.step()
+            
+            # total_loss += loss.item()
+            
             loss, l_sup, l_qry = meta_train_step(
-                wc_iters,
-                encoder_s, classifier, encoder_t, decoder_t, config, device
+                source_iter,    # 1. 对应定义中的 source_iter
+                target_iters,   # 2. 对应定义中的 target_iters
+                encoder_s,      # 3. 对应 encoder_s
+                classifier,     # 4. 对应 classifier
+                encoder_t,      # 5. 对应 encoder_t
+                decoder_t,      # 6. 对应 decoder_t
+                config,         # 7. 对应 config
+                device          # 8. <--- 之前报错就是缺了这个
             )
             
             loss.backward()
