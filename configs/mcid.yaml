@@ -3,7 +3,7 @@ data:
   dataset_name: "gearbox"
   root_dir: "data/gearbox"
   source_wc: "WC1"                    # 源域（教师看的干净数据）
-  target_wcs: ["WC2", "WC3"]  # 目标域工况
+  target_wcs: ["WC1", "WC2", "WC3", "WC4", "WC5", "WC6", "WC7", "WC8", "WC9"]  # 目标域工况
   test_wcs: ["WC1", "WC2", "WC3", "WC4", "WC5", "WC6", "WC7", "WC8", "WC9"]
 
 teacher:

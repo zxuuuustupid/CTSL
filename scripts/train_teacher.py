@@ -15,11 +15,13 @@ import torch.nn as nn
 import torch.optim as optim
 from datetime import datetime
 
+
 # 添加项目根目录到路径
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from src.data.dataloader import get_dataloader
 from src.models.encoder import MechanicEncoder
+from src.models.decoder import MechanicDecoder # 确保引入
 from src.models.classifier import MechanicClassifier
 
 
@@ -54,28 +56,35 @@ def get_device(config):
 
 
 def build_model(config, device):
-    """构建编码器和分类器"""
+    """构建编码器、分类器和解码器"""
     encoder_cfg = config['model']['encoder']
     classifier_cfg = config['model']['classifier']
+    # 假设 config 里有 decoder 的配置，如果没有，通常参数和 encoder 对称
     
     encoder = MechanicEncoder(
         input_channels=encoder_cfg['input_channels'],
         base_filters=encoder_cfg['base_filters'],
         output_feature_dim=encoder_cfg['output_feature_dim']
-    ).to(device)
-    
+    ).to(device) # 参数保持不变
     classifier = MechanicClassifier(
         feature_dim=classifier_cfg['feature_dim'],
         num_classes=classifier_cfg['num_classes'],
         dropout_rate=classifier_cfg['dropout_rate']
+    ).to(device) # 参数保持不变
+    
+    decoder = MechanicDecoder(
+        feature_dim=encoder_cfg['output_feature_dim'], # 输入是特征维度
+        output_channels=encoder_cfg['input_channels'], # 输出还原为原始通道数
+        base_filters=encoder_cfg['base_filters']
     ).to(device)
     
-    return encoder, classifier
+    return encoder, classifier, decoder # 返回三个模型
 
 
-def build_optimizer(encoder, classifier, config):
-    """构建优化器"""
-    params = list(encoder.parameters()) + list(classifier.parameters())
+def build_optimizer(encoder, classifier, decoder, config):
+    # === 把 decoder 的参数也加进去 ===
+    params = list(encoder.parameters()) + list(classifier.parameters()) + list(decoder.parameters())
+    # ... 其余不变
     optimizer = optim.Adam(
         params,
         lr=config['training']['learning_rate'],
@@ -105,35 +114,45 @@ def build_scheduler(optimizer, config):
     
     return scheduler
 
-
-def train_one_epoch(encoder, classifier, train_loader, criterion, optimizer, device, config):
+def train_one_epoch(encoder, classifier, decoder, train_loader, criterion, optimizer, device, config):
     """训练一个epoch"""
     encoder.train()
     classifier.train()
+    decoder.train() 
     
+    recon_criterion = nn.MSELoss() 
+    
+    # ================= 修改点：补回初始化代码 =================
     total_loss = 0.0
     correct = 0
     total = 0
-    log_interval = config['output']['log_interval']
+    log_interval = config['output']['log_interval'] # 确保能从 config 获取
+    # =======================================================
     
     for batch_idx, (data, target) in enumerate(train_loader):
         data, target = data.to(device), target.to(device)
-        
         optimizer.zero_grad()
         
-        # 前向传播
+        # 1. 提取特征
         features = encoder(data)
+        
+        # 2. 分类分支
         outputs = classifier(features)
+        loss_cls = criterion(outputs, target)
         
-        # 计算损失
-        loss = criterion(outputs, target)
+        # 3. 重构分支 
+        # 注意：这里假设 decoder 接受 target_length 参数，如果报错请检查 decoder.py
+        recon_data = decoder(features, target_length=data.shape[-1]) 
+        loss_recon = recon_criterion(recon_data, data) 
         
-        # 反向传播
+        # 4. 总损失 (建议给重构损失加个权重，例如 0.5，防止分类被带偏)
+        loss = loss_cls + 0.5 * loss_recon 
+        
         loss.backward()
         optimizer.step()
         
         # 统计
-        total_loss += loss.item()
+        total_loss += loss.item() # 现在 total_loss 已经初始化了，不会报错了
         _, predicted = outputs.max(1)
         total += target.size(0)
         correct += predicted.eq(target).sum().item()
@@ -147,7 +166,6 @@ def train_one_epoch(encoder, classifier, train_loader, criterion, optimizer, dev
     accuracy = 100. * correct / total
     
     return avg_loss, accuracy
-
 
 def evaluate(encoder, classifier, test_loader, criterion, device, wc_name=""):
     """在测试集上评估模型"""
@@ -206,12 +224,13 @@ def evaluate_all_wcs(encoder, classifier, config, criterion, device):
     return results, avg_acc
 
 
-def save_checkpoint(encoder, classifier, optimizer, epoch, best_acc, save_path):
+def save_checkpoint(encoder, classifier, decoder, optimizer, epoch, best_acc, save_path):
     """保存模型检查点"""
     checkpoint = {
         'epoch': epoch,
         'encoder_state_dict': encoder.state_dict(),
         'classifier_state_dict': classifier.state_dict(),
+        'decoder_state_dict': decoder.state_dict(),
         'optimizer_state_dict': optimizer.state_dict(),
         'best_acc': best_acc,
     }
@@ -242,17 +261,19 @@ def main(config_path):
     
     # 构建模型
     print("\n构建模型...")
-    encoder, classifier = build_model(config, device)
+    encoder, classifier, decoder = build_model(config, device)
     
     # 打印模型参数量
     encoder_params = sum(p.numel() for p in encoder.parameters())
     classifier_params = sum(p.numel() for p in classifier.parameters())
+    decoder_params = sum(p.numel() for p in decoder.parameters())
     print(f"Encoder 参数量: {encoder_params:,}")
     print(f"Classifier 参数量: {classifier_params:,}")
-    print(f"总参数量: {encoder_params + classifier_params:,}")
+    print(f"Decoder 参数量: {decoder_params:,}")
+    print(f"总参数量: {encoder_params + classifier_params + decoder_params:,}")
     
     # 构建优化器和调度器
-    optimizer = build_optimizer(encoder, classifier, config)
+    optimizer = build_optimizer(encoder, classifier, decoder, config)
     scheduler = build_scheduler(optimizer, config)
     
     # 损失函数
@@ -283,7 +304,7 @@ def main(config_path):
         
         # 训练
         train_loss, train_acc = train_one_epoch(
-            encoder, classifier, train_loader, criterion, optimizer, device, config
+            encoder, classifier, decoder, train_loader, criterion, optimizer, device, config
         )
         print(f"训练集 - Loss: {train_loss:.4f}, Acc: {train_acc:.2f}%")
         
@@ -297,7 +318,7 @@ def main(config_path):
         if config['output']['save_best'] and avg_acc > best_avg_acc:
             best_avg_acc = avg_acc
             best_model_path = os.path.join(save_dir, "best_model.pth")
-            save_checkpoint(encoder, classifier, optimizer, epoch, best_avg_acc, best_model_path)
+            save_checkpoint(encoder, classifier, decoder, optimizer, epoch, best_avg_acc, best_model_path)
             patience_counter = 0
         else:
             patience_counter += 1
