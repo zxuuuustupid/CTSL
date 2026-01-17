@@ -16,7 +16,7 @@ from src.data.dataloader import get_dataloader
 from src.models.encoder import MechanicEncoder
 from src.models.decoder import MechanicDecoder
 from src.models.classifier import MechanicClassifier
-
+from src.utils.metrics import MetricRecorder
 
 def load_config(path):
     with open(path, 'r', encoding='utf-8') as f:
@@ -323,7 +323,7 @@ def meta_train_step(source_iter, target_iters, encoder_s, classifier, encoder_t,
     return l_total, total_sup_loss.item() if isinstance(total_sup_loss, torch.Tensor) else 0, l_qry.item()
 
 
-def evaluate(encoder, classifier, config, device):
+def evaluate(encoder, classifier, config, device,recorder=None):
     """在测试集上评估泛化能力"""
     data_cfg = config['data']
     batch_size = config['training']['batch_size']
@@ -333,6 +333,8 @@ def evaluate(encoder, classifier, config, device):
     
     encoder.eval()
     classifier.eval()
+    
+    recorder.reset()
     
     for wc in data_cfg['test_wcs']:
         path = os.path.join(data_cfg['root_dir'], wc, 'test')
@@ -344,6 +346,9 @@ def evaluate(encoder, classifier, config, device):
                 x, y = x.to(device), y.to(device)
                 feat = encoder(x)
                 pred = classifier(feat).argmax(1)
+                
+                recorder.update(wc, pred, y)
+                
                 correct += (pred == y).sum().item()
                 total += y.size(0)
         
@@ -377,6 +382,7 @@ def main(config_path):
         base_filters=config['model']['base_filters'],
         output_feature_dim=config['model']['feature_dim']
     ).to(device)
+    encoder_s.load_state_dict(encoder_t.state_dict())
 # 分类器直接用 teacher 的，或者把 teacher 的分类器提取出来
     classifier = classifier_t
     classifier.eval() # 必须 Eval 模式
@@ -392,6 +398,14 @@ def main(config_path):
     
     # 打印一下确认数据加载成功
     print(f"数据加载完成。Source: 1个, Target: {len(target_iters)}个")
+    
+    
+    metric_recorder = MetricRecorder(
+        save_dir=config['output']['save_dir'], 
+        experiment_name=f"{config['data']['dataset_name']}",
+        class_names=["0", "1", "2", "3"] # <--- 这里填你真实的故障类别名
+    )
+    metric_recorder.save_config(config)
     
     # 优化器
     # params = list(encoder_s.parameters()) + list(classifier.parameters())
@@ -452,7 +466,7 @@ def main(config_path):
         # 评估与保存
         if epoch % 5 == 0:
             print(f"Epoch {epoch} 评估:")
-            avg_acc = evaluate(encoder_s, classifier, config, device)
+            avg_acc = evaluate(encoder_s, classifier, config, device, metric_recorder)
             
             if avg_acc > best_acc:
                 best_acc = avg_acc
@@ -464,6 +478,8 @@ def main(config_path):
                     'best_acc': best_acc
                 }, save_path)
                 print(f"保存最佳模型: {save_path} (Acc: {best_acc:.2f}%)")
+                
+                metric_recorder.calculate_and_save(epoch)
     
     print(f"\n训练结束，最佳平均准确率: {best_acc:.2f}%")
 
