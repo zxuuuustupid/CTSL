@@ -1,51 +1,29 @@
-from huggingface_hub import HfApi
-
-# 1. 直接在这里填入你的 Token
-your_token = "token" # 替换成你真实的 Token
 import os
-import time
+from modelscope.msdatasets import MsDataset
+from modelscope.hub.api import HubApi
 
-# 1. 保持核武级屏蔽（防止代理干扰）
-os.environ['no_proxy'] = '*'
-os.environ['HTTP_PROXY'] = ""
-os.environ['HTTPS_PROXY'] = ""
-os.environ['http_proxy'] = ""
-os.environ['https_proxy'] = ""
-os.environ["HF_ENDPOINT"] = "https://hf-mirror.com"
+# 1. 填入你的魔搭 SDK Token
+YOUR_ACCESS_TOKEN = "这里填入你的魔搭Token"
 
-from huggingface_hub import HfApi
-from requests.exceptions import RequestException
+# 2. 初始化 API
+api = HubApi()
+api.login(YOUR_ACCESS_TOKEN)
 
-# 配置
-# your_token = "你的hf_token"
-repo_id = "Jusin0305/mcid"
-local_folder_path = r"F:\Project\mid\S-MID\data\gearbox"
+# 3. 配置路径
+repo_id = "Jusin0305/mcid"  # 填入你刚才在官网创建的数据集ID
+local_data_dir = r"F:\Project\mid\S-MID\data\gearbox" # 你的本地几十GB数据根目录
 
-api = HfApi(token=your_token, endpoint="https://hf-mirror.com")
+print(f"🚀 开始上传数据到魔搭社区...")
 
-def start_upload():
-    retry_count = 0
-    max_retries = 50 # 自动重试50次
-
-    while retry_count < max_retries:
-        try:
-            print(f"\n🚀 第 {retry_count + 1} 次尝试上传...")
-            api.upload_folder(
-                folder_path=local_folder_path,
-                repo_id=repo_id,
-                repo_type="dataset",
-                path_in_repo=".",
-                commit_message=f"Upload batch {retry_count}",
-                # 核心参数：如果你的 huggingface_hub 版本较新，开启下面这个可以提高稳定性
-                # multi_commits=True,
-                # multi_commits_threshold=100 * 1024 * 1024 # 100MB
-            )
-            print("✅ 【全部上传成功！】")
-            break
-        except Exception as e:
-            retry_count += 1
-            print(f"⚠️ 本次上传中断（可能是网络波动），3秒后自动续传... \n错误信息: {e}")
-            time.sleep(3) # 等待3秒后重试
-
-if __name__ == "__main__":
-    start_upload()
+# 4. 执行上传
+# upload_folder 会自动递归上传子文件夹，并处理大文件分片
+try:
+    api.upload_folder(
+        repo_id=repo_id,
+        folder_path=local_data_dir,
+        repo_type="dataset",
+        commit_message="Upload gearbox dataset (tens of GBs)",
+    )
+    print("✅ 全部数据上传完成！")
+except Exception as e:
+    print(f"❌ 上传失败，你可以再次运行脚本进行续传。错误信息：\n{e}")

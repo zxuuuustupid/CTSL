@@ -39,3 +39,4 @@ Thumbs.db
 ckpts/
 data.zip
 log/
+data/data_upload.py
