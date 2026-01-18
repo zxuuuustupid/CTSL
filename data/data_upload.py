@@ -1,9 +1,20 @@
 import os
 from modelscope.msdatasets import MsDataset
 from modelscope.hub.api import HubApi
+from dotenv import load_dotenv
+import os
 
-# 1. 填入你的魔搭 SDK Token
-YOUR_ACCESS_TOKEN = "这里填入你的魔搭Token"
+# 加载 .env 文件
+load_dotenv()
+
+# 读取访问令牌
+YOUR_ACCESS_TOKEN = os.getenv("YOUR_ACCESS_TOKEN")
+
+# 验证是否成功读取
+if not YOUR_ACCESS_TOKEN:
+    raise ValueError("YOUR_ACCESS_TOKEN not found in environment variables")
+
+print(f"Token loaded successfully! (First 5 chars: {YOUR_ACCESS_TOKEN[:5]}...)")
 
 # 2. 初始化 API
 api = HubApi()
@@ -11,7 +22,7 @@ api.login(YOUR_ACCESS_TOKEN)
 
 # 3. 配置路径
 repo_id = "Jusin0305/mcid"  # 填入你刚才在官网创建的数据集ID
-local_data_dir = r"F:\Project\mid\S-MID\data\gearbox" # 你的本地几十GB数据根目录
+local_data_dir = r"F:\Project\mid\S-MID\data" # 你的本地几十GB数据根目录
 
 print(f"🚀 开始上传数据到魔搭社区...")
 
