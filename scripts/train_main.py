@@ -12,6 +12,9 @@ from copy import deepcopy
 from itertools import cycle
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from torch.utils.data import ConcatDataset, DataLoader
+from src.data.dataloader import NpyDataset
 from src.data.dataloader import get_dataloader
 from src.models.encoder import MechanicEncoder
 from src.models.decoder import MechanicDecoder
@@ -34,22 +37,36 @@ def set_seed(seed):
 def load_data_split(config):
     """
     根据配置文件加载数据:
-    1. source_iter:  Teacher 专用 (来自 source_wc / "WC1")
+    1. source_iter:  Teacher 专用 (来自 source_wc / ["WC1"])
     2. target_iters: Student 专用 (来自 target_wcs / ["WC2", "WC3"])
     """
     data_cfg = config['data']
     batch_size = config['training']['batch_size']
 
     # === 1. 加载 Teacher 专用的源域数据 (Source WC) ===
-    source_wc = data_cfg['source_wc']  # e.g., "WC1"
-    print(f"[Data] Teacher 加载源工况: {source_wc}")
+    source_wcs = data_cfg['source_wc']  # e.g., ["WC1"]
+    if isinstance(source_wcs, str):
+        source_wcs = [source_wcs]
+    print(f"[Data] Teacher 加载源工况: {source_wcs}")
 
-    source_path = os.path.join(data_cfg['root_dir'], source_wc, 'train')
-    # 检查路径是否存在
-    if not os.path.exists(source_path):
-        raise FileNotFoundError(f"源工况路径不存在: {source_path}")
+    # source_path = os.path.join(data_cfg['root_dir'], "_".join(source_wcs), 'train')
+    # # 检查路径是否存在
+    # if not os.path.exists(source_path):
+    #     raise FileNotFoundError(f"源工况路径不存在: {source_path}")
 
-    source_loader = get_dataloader(source_path, batch_size, shuffle=True)
+    # source_loader = get_dataloader(source_path, batch_size, shuffle=True)
+    # source_iter = get_infinite_loader(source_loader)
+
+    source_datasets = []
+    for wc in source_wcs:
+        path = os.path.join(data_cfg['root_dir'], wc, 'train')
+        if not os.path.exists(path):
+            raise FileNotFoundError(f"源工况路径不存在: {path}")
+        source_datasets.append(NpyDataset(path))
+
+    # 合并多个数据集并转换为无限迭代器
+    combined_source = ConcatDataset(source_datasets)
+    source_loader = DataLoader(combined_source, batch_size=batch_size, shuffle=True, pin_memory=True)
     source_iter = get_infinite_loader(source_loader)
 
     # === 2. 加载 Student 用的目标工况数据 (Target WCs / Attacker Pool) ===
@@ -79,8 +96,21 @@ def load_teacher(config, device):
     decoder = MechanicDecoder(cfg['feature_dim'], cfg['input_channels'], cfg['base_filters']).to(device)
     classifier = MechanicClassifier(cfg['feature_dim'], cfg['num_classes'], cfg['dropout']).to(device)
 
-    # 确保加载具体的pth文件
-    ckpt_path = os.path.join(config['teacher']['checkpoint'], config['data']['dataset_name'], 'best_model.pth')
+    # # 确保加载具体的pth文件
+    # ckpt_path = os.path.join(config['teacher']['checkpoint'], config['data']['dataset_name'], 'best_model.pth')
+
+    source_list = config['data']['source_wc']
+    nums = sorted(["".join(filter(str.isdigit, wc)) for wc in source_list], key=int)
+    wc_tag = "_".join(nums)
+    filename = f"train_{wc_tag}_best_model.pth"
+    ckpt_path = os.path.join(
+        config['teacher']['checkpoint'],
+        config['data']['dataset_name'],
+        filename
+    )
+
+    print(f"正在加载教师模型: {ckpt_path}")
+
     if os.path.exists(ckpt_path) and os.path.isfile(ckpt_path):
         ckpt = torch.load(ckpt_path, map_location=device)
         encoder.load_state_dict(ckpt['encoder_state_dict'])
@@ -397,7 +427,7 @@ def main(config_path):
     source_iter, target_iters = load_data_split(config)
 
     # 打印一下确认数据加载成功
-    print(f"数据加载完成。Source: 1个, Target: {len(target_iters)}个")
+    print(f"数据加载完成。Source: Target: {len(target_iters)}个")
 
 
     metric_recorder = MetricRecorder(
@@ -464,21 +494,53 @@ def main(config_path):
               f"Query={total_qry/iterations_per_epoch:.4f}")
 
         # 评估与保存
+        # if epoch % 5 == 0:
+        #     print(f"Epoch {epoch} 评估:")
+        #     avg_acc = evaluate(encoder_s, classifier, config, device, metric_recorder)
+
+        #     if avg_acc > best_acc:
+        #         best_acc = avg_acc
+        #         save_path = os.path.join(config['output']['save_dir'],
+        #                                f"{config['data']['dataset_name']}_mcid_best.pth")
+        #         torch.save({
+        #             'encoder_state_dict': encoder_s.state_dict(),
+        #             'classifier_state_dict': classifier.state_dict(),
+        #             'best_acc': best_acc
+        #         }, save_path)
+        #         print(f"保存最佳模型: {save_path} (Acc: {best_acc:.2f}%)")
+
+        #         metric_recorder.calculate_and_save(epoch)
+
+
         if epoch % 5 == 0:
             print(f"Epoch {epoch} 评估:")
             avg_acc = evaluate(encoder_s, classifier, config, device, metric_recorder)
 
             if avg_acc > best_acc:
                 best_acc = avg_acc
-                save_path = os.path.join(config['output']['save_dir'],
-                                       f"{config['data']['dataset_name']}_mcid_best.pth")
+
+                # --- 核心修改：动态生成包含 source 和 target 编号的文件名 ---
+                # 1. 处理 Source 编号 (例如 ["WC1"] -> "1")
+                src_list = config['data']['source_wc']
+                src_nums = sorted(["".join(filter(str.isdigit, x)) for x in src_list], key=int)
+                src_tag = "_".join(src_nums)
+
+                # 2. 处理 Target 编号 (例如 ["WC2", "WC3"] -> "2_3")
+                tgt_list = config['data']['target_wcs']
+                tgt_nums = sorted(["".join(filter(str.isdigit, x)) for x in tgt_list], key=int)
+                tgt_tag = "_".join(tgt_nums)
+
+                # 3. 组合最终路径
+                file_name = f"mcid_train_{src_tag}_meta_{tgt_tag}_best.pth"
+                save_path = os.path.join(config['output']['save_dir'],config['data']['dataset_name'], file_name)
+                os.makedirs(os.path.dirname(save_path), exist_ok=True)
                 torch.save({
                     'encoder_state_dict': encoder_s.state_dict(),
                     'classifier_state_dict': classifier.state_dict(),
                     'best_acc': best_acc
                 }, save_path)
-                print(f"保存最佳模型: {save_path} (Acc: {best_acc:.2f}%)")
 
+                print(f"保存最佳模型: {save_path} (Acc: {best_acc:.2f}%)")
                 metric_recorder.calculate_and_save(epoch)
 
     print(f"\n训练结束，最佳平均准确率: {best_acc:.2f}%")
