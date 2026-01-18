@@ -1,15 +1,30 @@
 import os
 import glob
+from re import S
 import pandas as pd
 import numpy as np
 from scipy.fftpack import fft
 
 # ================= 核心配置区域 =================
-RAW_DATA_ROOT = r"F:\Project\TripletLoss\BJTU-RAO Bogie Datasets\Data\BJTU_RAO_Bogie_Datasets"
-OUTPUT_ROOT = r"F:\Project\mid\S-MID\data\gearbox" # 建议换个名字
 
-FOLDER_PATTERN = "M0_G{}_LA0_RA0"
-STATE_MAP = {0: 0, 3: 1, 7: 2, 8: 3}
+
+COMPONENT = "motor"  # "motor" 或 "lefaxlebox"
+RAW_DATA_ROOT = r"F:\Project\TripletLoss\BJTU-RAO Bogie Datasets\Data\BJTU_RAO_Bogie_Datasets"
+# OUTPUT_ROOT = r"F:\Project\mid\S-MID\data\gearbox" # 建议换个名字
+# OUTPUT_ROOT = r"F:\Project\mid\S-MID\data\motor"
+OUTPUT_ROOT = f"F:\\Project\\mid\\S-MID\\data\\{COMPONENT}"
+
+
+
+# FOLDER_PATTERN = "M0_G{}_LA0_RA0"
+
+FOLDER_PATTERN = "M{}_G0_LA0_RA0"
+
+# FOLDER_PATTERN = "M0_G0_LA{}_RA0"
+
+# STATE_MAP = {0: 0, 3: 1, 7: 2, 8: 3}
+STATE_MAP = {0: 0, 1: 1, 2: 2, 3: 3}
+
 SAMPLE_INDICES = range(1, 10)
 
 TRAIN_NUM = 1000
@@ -93,7 +108,7 @@ def main():
         for raw_state, save_label in STATE_MAP.items():
             state_folder_name = FOLDER_PATTERN.format(raw_state)
             target_folder = os.path.join(RAW_DATA_ROOT, state_folder_name, f"Sample_{s_idx}")
-            search_pattern = os.path.join(target_folder, "data_gearbox*.csv")
+            search_pattern = os.path.join(target_folder, f"data_{COMPONENT}*.csv")
             csv_files = glob.glob(search_pattern)
 
             if not csv_files: continue
