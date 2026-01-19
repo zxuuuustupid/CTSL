@@ -20,8 +20,7 @@ FOLDER_TO_LABEL = {
     "2-IA": 1,  # 内圈故障
     "3-IW": 2,  # 外圈故障
     "4-OA": 3,  # 滚动体故障
-    "5-OW": 4,
-    "6-CF": 5# 保持架故障 (假设CF是Cage Fault)
+    "5-CF": 4# 保持架故障 (假设CF是Cage Fault)
 }
 
 # 训练配置

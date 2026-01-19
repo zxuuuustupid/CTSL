@@ -133,6 +133,16 @@ def train_one_epoch(encoder, classifier, decoder, train_loader, criterion, optim
 
     for batch_idx, (data, target) in enumerate(train_loader):
         data, target = data.to(device), target.to(device)
+
+        if batch_idx == 0:
+            print(f"\n[DEBUG] Data Shape: {data.shape}")
+            print(f"[DEBUG] Data Min: {data.min().item()}, Max: {data.max().item()}, Mean: {data.mean().item()}")
+            print(f"[DEBUG] Target Sample: {target[:10].tolist()}")
+            # 检查是否有 NaN
+            if torch.isnan(data).any():
+                print("[ERROR] 输入数据包含 NaN !!!")
+
+
         optimizer.zero_grad()
 
         # 1. 提取特征
@@ -160,9 +170,12 @@ def train_one_epoch(encoder, classifier, decoder, train_loader, criterion, optim
         correct += predicted.eq(target).sum().item()
 
         if (batch_idx + 1) % log_interval == 0:
+
             print(f"  Batch [{batch_idx + 1}/{len(train_loader)}] "
-                  f"Loss: {loss.item():.4f} "
-                  f"Acc: {100. * correct / total:.2f}%")
+        f"Total Loss: {loss.item():.4f} | "
+        f"Cls Loss: {loss_cls.item():.4f} | "
+        f"Recon Loss: {loss_recon.item():.4f} | "  # 观察这个数值是否远大于 Cls Loss
+        f"Acc: {100. * correct / total:.2f}%")
 
     avg_loss = total_loss / len(train_loader)
     accuracy = 100. * correct / total
@@ -328,7 +341,8 @@ def main(config_path):
         train_loss, train_acc = train_one_epoch(
             encoder, classifier, decoder, train_loader, criterion, optimizer, device, config
         )
-        print(f"训练集 - Loss: {train_loss:.4f}, Acc: {train_acc:.2f}%")
+        # print(f"训练集 - Loss: {train_loss:.4f}, Acc: {train_acc:.2f}%")
+
 
         # 更新学习率
         scheduler.step()
@@ -384,4 +398,4 @@ if __name__ == "__main__":
     main(args.config)
 
 
-# 
+#

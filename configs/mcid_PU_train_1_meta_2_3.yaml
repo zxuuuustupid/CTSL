@@ -1,7 +1,7 @@
 # MCID 元学习训练配置
 data:
-  dataset_name: "SWJTU"
-  root_dir: "data/SWJTU"
+  dataset_name: "PU"
+  root_dir: "data/PU"
   source_wc: ["WC1"]                    # 源域（教师看的干净数据）
   target_wcs: ["WC2", "WC3"]  # 目标域工况
   test_wcs: ["WC4"]
@@ -11,14 +11,14 @@ teacher:
   feature_dim: 512
 
 model:
-  input_channels: 3
+  input_channels: 1
   base_filters: 64
   feature_dim: 512
-  num_classes: 5
+  num_classes: 8
   dropout: 0.3
 
 meta:
-  inner_lr: 0.001                      # 内循环学习率 alpha
+  inner_lr: 0.0001                      # 内循环学习率 alpha
   beta: 1.0                           # meta-test 损失权重
   first_order: true                   # FOMAML
 
