@@ -22,6 +22,9 @@ from src.models.decoder import MechanicDecoder
 from src.models.classifier import MechanicClassifier
 from src.utils.metrics import MetricRecorder
 
+
+# torch.backends.cudnn.benchmark = False
+
 def load_config(path):
     with open(path, 'r', encoding='utf-8') as f:
         return yaml.safe_load(f)

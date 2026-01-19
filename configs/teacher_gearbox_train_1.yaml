@@ -35,14 +35,14 @@ training:
   epochs: 100                         # 训练轮数
   learning_rate: 0.001                # 初始学习率
   weight_decay: 0.0001                # 权重衰减（L2正则化）
-  
+
   # 学习率调度器
   scheduler:
     type: "StepLR"                    # 调度器类型: StepLR, CosineAnnealingLR
     step_size: 30                     # StepLR: 每多少epoch衰减一次
     gamma: 0.1                        # StepLR: 衰减系数
     T_max: 100                        # CosineAnnealingLR: 周期
-  
+
   # 早停配置
   early_stopping:
     enabled: true                     # 是否启用早停

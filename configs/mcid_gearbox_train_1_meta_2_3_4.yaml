@@ -28,7 +28,7 @@ loss:
   lambda_lc: 1                    # 标签一致性
 
 training:
-  batch_size: 32
+  batch_size: 64
   epochs: 100
   lr: 0.001
   weight_decay: 0.0001

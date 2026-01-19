@@ -31,8 +31,8 @@ FAULT_TYPE_MAP = {
 # 样本数量配置
 TRAIN_NUM = 1000
 TEST_NUM = 200
-WINDOW_SIZE = 2048
-OVERLAP_RATIO = 0.995
+WINDOW_SIZE = 1024
+OVERLAP_RATIO = 0.8
 STRIDE = int(WINDOW_SIZE * (1 - OVERLAP_RATIO))
 
 # ================= 信号处理模块 =================

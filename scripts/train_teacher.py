@@ -176,6 +176,8 @@ def train_one_epoch(encoder, classifier, decoder, train_loader, criterion, optim
         f"Cls Loss: {loss_cls.item():.4f} | "
         f"Recon Loss: {loss_recon.item():.4f} | "  # 观察这个数值是否远大于 Cls Loss
         f"Acc: {100. * correct / total:.2f}%")
+            # print(f"Target distribution: {torch.unique(target, return_counts=True)}")
+
 
     avg_loss = total_loss / len(train_loader)
     accuracy = 100. * correct / total
