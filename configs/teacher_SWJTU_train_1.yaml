@@ -26,7 +26,7 @@ model:
     output_feature_dim: 512           # 编码器输出特征维度
   classifier:
     feature_dim: 512                  # 必须与encoder输出维度一致
-    num_classes: 5                    # 故障类别数（根据数据集调整）
+    num_classes: 6                    # 故障类别数（根据数据集调整）
     dropout_rate: 0.5                 # Dropout比例
 
 # --- 训练配置 ---

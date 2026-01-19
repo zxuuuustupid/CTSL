@@ -4,32 +4,29 @@
 
 # --- 数据配置 ---
 data:
-  dataset_name:  "gearbox"               # 数据集名称
-  root_dir: "data/gearbox"           # 数据根目录
-  train_wc:
-    - "WC1"
-    - "WC2"
-    - "WC3"                     # 训练工况
+  dataset_name:  "Ottawa"               # 数据集名称
+  root_dir: "data/Ottawa"           # 数据根目录
+  train_wc: "WC1"                     # 训练工况
   test_wcs:                           # 测试工况列表（测试所有工况）
     - "WC1"
     - "WC2"
     - "WC3"
     - "WC4"
-    - "WC5"
-    - "WC6"
-    - "WC7"
-    - "WC8"
-    - "WC9"
+    # - "WC5"
+    # - "WC6"
+    # - "WC7"
+    # - "WC8"
+    # - "WC9"
 
 # --- 模型配置 ---
 model:
   encoder:
-    input_channels: 6                 # 输入通道数（单轴振动为1）
+    input_channels: 1                 # 输入通道数（单轴振动为1）
     base_filters: 64                  # 卷积基础通道数
     output_feature_dim: 512           # 编码器输出特征维度
   classifier:
     feature_dim: 512                  # 必须与encoder输出维度一致
-    num_classes: 4                    # 故障类别数（根据数据集调整）
+    num_classes: 5                    # 故障类别数（根据数据集调整）
     dropout_rate: 0.5                 # Dropout比例
 
 # --- 训练配置 ---

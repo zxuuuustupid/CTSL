@@ -17,10 +17,11 @@ OUTPUT_ROOT = r"F:\Project\mid\S-MID\data\SWJTU"
 # 文件夹名: 标签 Label
 FOLDER_TO_LABEL = {
     "1-H": 0,   # 健康
-    "2-IF": 1,  # 内圈故障
-    "3-OF": 2,  # 外圈故障
-    "4-BF": 3,  # 滚动体故障
-    "5-CF": 4   # 保持架故障 (假设CF是Cage Fault)
+    "2-IA": 1,  # 内圈故障
+    "3-IW": 2,  # 外圈故障
+    "4-OA": 3,  # 滚动体故障
+    "5-OW": 4,
+    "6-CF": 5# 保持架故障 (假设CF是Cage Fault)
 }
 
 # 训练配置
