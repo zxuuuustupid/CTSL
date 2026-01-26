@@ -1,4 +1,4 @@
-# Collaborative Teacher-Student Learning (CTSL)
+# CTSL:Collaborative Teacher-Student Learning
 
 ## Overview
 
@@ -58,13 +58,6 @@ _Note: The codebase uses `mcid` prefixes for configuration files corresponding t
 python scripts/train_main.py --config configs/mcid_<dataset>_train_<source>_meta_<targets>.yaml
 ```
 
-### Visualization
-
-To visualize the feature distributions and compare the Teacher vs. Student (CTSL) performance:
-
-```bash
-python experiments/compare_PU_tsne.py --save_name compare_results
-```
 
 ## Citation
 
