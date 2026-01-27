@@ -46,4 +46,4 @@ data/data_upload.py
 *.png
 *.jpg
 *.svg
-
+*.json
