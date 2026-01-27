@@ -48,3 +48,4 @@ data/data_upload.py
 *.svg
 *.json
 experiments/*/**/*.png
+scripts/train_main_test.py
