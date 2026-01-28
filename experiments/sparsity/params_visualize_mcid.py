@@ -12,7 +12,7 @@ from copy import deepcopy
 import matplotlib.pyplot as plt
 
 # 添加路径
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
 from src.data.dataloader import NpyDataset, get_dataloader
 from torch.utils.data import ConcatDataset, DataLoader
@@ -35,9 +35,14 @@ def set_seed(seed):
 
 def calculate_sparsity_index(model):
     """计算 Encoder 参数的 L2 范数平方和"""
+    # 清理显存缓存，防止OOM
+    if torch.cuda.is_available():
+        torch.cuda.empty_cache()
+
     total_norm_sq = 0.0
-    for param in model.parameters():
-        total_norm_sq += param.norm(2).item() ** 2
+    with torch.no_grad():
+        for param in model.parameters():
+            total_norm_sq += param.norm(2).item() ** 2
     return total_norm_sq
 
 def get_infinite_loader(loader):
@@ -210,15 +215,15 @@ def main(config_path):
         print(f"Epoch [{epoch}/{epochs}] - MID Sparsity Index: {current_sparsity:.4f}")
 
     # 5. 保存结果
-    data_save_path = "experiments/sparsity_data_mid.npy"
-    plot_save_path = "experiments/sparsity_curve_mid.png"
+    data_save_path = "experiments/sparsity/PU124/sparsity_data_mid.npy"
+    plot_save_path = "experiments/sparsity/PU124/sparsity_curve_mid.png"
 
     np.save(data_save_path, np.array(sparsity_history))
 
     plt.figure(figsize=(10, 6))
     plt.plot(range(1, epochs + 1), sparsity_history, label='MID (Meta-Learning)', color='blue', linewidth=2)
     plt.xlabel('Epochs')
-    plt.ylabel('L2 Norm of Parameters')
+    plt.ylabel('L2 Norm of Parameters (Sparsity Index)')
     plt.title('MID Sparsity Curve')
     plt.grid(True, linestyle='--', alpha=0.7)
     plt.legend()
@@ -233,6 +238,6 @@ def main(config_path):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--config", type=str, default="configs/mcid.yaml")
+    parser.add_argument("--config", type=str, default="configs/mcid_PU_train_1_meta_2_4.yaml")
     args = parser.parse_args()
     main(args.config)

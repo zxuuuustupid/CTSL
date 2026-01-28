@@ -3,6 +3,10 @@ import matplotlib.pyplot as plt
 import matplotlib.ticker as ticker
 import os
 
+
+task="PU123"  # 可修改为 PU124 或 PU1234 等，根据需要选择任务
+
+
 # ================= 1. 顶刊绘图风格配置 =================
 def set_pub_style():
     """配置 Matplotlib 以符合顶刊发表标准"""
@@ -36,8 +40,8 @@ set_pub_style()
 
 # ================= 2. 数据加载 =================
 try:
-    baseline = np.load("experiments/PU/sparsity_data_baseline.npy")
-    mid = np.load("experiments/PU/sparsity_data_mid.npy")
+    baseline = np.load(f"experiments/sparsity/{task}/sparsity_data_baseline.npy")
+    mid = np.load(f"experiments/sparsity/{task}/sparsity_data_mid.npy")
 except FileNotFoundError:
     print("错误：未找到数据文件，请先运行稀疏性分析脚本！")
     exit()
@@ -90,7 +94,7 @@ legend.get_frame().set_linewidth(1.0)
 # ax.fill_between(x_axis, baseline, mid, color='gray', alpha=0.1, label='Sparsity Gap')
 
 # ================= 4. 保存矢量图 =================
-output_dir = "experiments/PU"
+output_dir = f"experiments/sparsity/{task}"
 os.makedirs(output_dir, exist_ok=True)
 
 # 保存为 PDF (LaTeX 编译最佳伴侣)

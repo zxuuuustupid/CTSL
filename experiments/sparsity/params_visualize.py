@@ -10,8 +10,8 @@ import torch.optim as optim
 import matplotlib.pyplot as plt  # 引入绘图库
 
 # 添加路径
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
+# sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 from src.data.dataloader import NpyDataset
 from src.models.encoder import MechanicEncoder
 from src.models.decoder import MechanicDecoder
@@ -37,9 +37,10 @@ def calculate_sparsity_index(model):
     这里我们计算 Encoder 所有参数的 L2 范数平方和
     """
     total_norm_sq = 0.0
-    for param in model.parameters():
-        # param.norm(2) 计算 L2 范数，.item() 转标量，**2 平方
-        total_norm_sq += param.norm(2).item() ** 2
+    with torch.no_grad():
+        for param in model.parameters():
+            # param.norm(2) 计算 L2 范数，.item() 转标量，**2 平方
+            total_norm_sq += param.norm(2).item() ** 2
     return total_norm_sq
 
 def train_one_epoch(encoder, classifier, decoder, train_loader, criterion, optimizer, device):
@@ -116,7 +117,8 @@ def main(config_path):
 
     train_loader = torch.utils.data.DataLoader(
         torch.utils.data.ConcatDataset(datasets),
-        batch_size=2*config['training']['batch_size'],
+        batch_size=config['training']['batch_size'],
+        # batch_size=2*config['training']['batch_size'],
         # batch_size=8,
         shuffle=True
     )
@@ -139,8 +141,8 @@ def main(config_path):
         print(f"Epoch [{epoch}/{epochs}] - Encoder Param Norm: {current_sparsity:.4f}")
 
     # 6. 可视化并保存结果
-    plot_save_path = "experiments/sparsity_curve_baseline.png"
-    data_save_path = "experiments/sparsity_data_baseline.npy"
+    plot_save_path = "experiments/sparsity/PU124/sparsity_curve_baseline.png"
+    data_save_path = "experiments/sparsity/PU124/sparsity_data_baseline.npy"
 
     # 保存数据以便后续对比
     np.save(data_save_path, np.array(sparsity_history))
@@ -163,6 +165,8 @@ def main(config_path):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--config", type=str, default="configs/teacher.yaml")
+    # parser.add_argument("--config", type=str, default="configs/teacher.yaml")
+
+    parser.add_argument("--config", type=str, default="configs/teacher_PU_train_1.yaml")
     args = parser.parse_args()
     main(args.config)
