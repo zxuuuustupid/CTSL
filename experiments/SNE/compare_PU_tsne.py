@@ -23,7 +23,7 @@ from sklearn.manifold import TSNE
 from tqdm import tqdm
 
 # 将项目根目录加入路径
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
 from src.data.dataloader import get_dataloader
 from src.models.encoder import MechanicEncoder
@@ -223,7 +223,7 @@ class FontConfig:
         self.title_size = 14
         self.label_size = 16
         self.legend_size = 10
-        self.legend_title_size = 11
+        self.legend_title_size = 14
         self.suptitle_size = 16
         self.weight = 'bold'  # 'normal', 'bold', 'light'
 
@@ -311,8 +311,8 @@ class LayoutConfig:
         self.wspace = 0.08          # 子图水平间距
         self.hspace = 0.15          # 子图垂直间距
         self.left_margin = 0.05     # 左边距
-        self.right_margin = 0.92    # 右边距（为图例留空间）
-        self.top_margin = 0.95      # 上边距
+        self.right_margin = 0.98    # 右边距（顶部图例不需要侧边空间）
+        self.top_margin = 0.92      # 上边距（为顶部图例留空间）
         self.bottom_margin = 0.05   # 下边距
 
 
@@ -340,12 +340,13 @@ class LegendConfig:
     """图例配置"""
     def __init__(self):
         self.show = True
-        self.position = 'right'      # 'right', 'bottom', 'none'
-        self.bbox_x = 0.95           # x位置
-        self.bbox_y = 0.75            # y位置
+        self.position = 'top'        # 'right', 'bottom', 'top', 'none'
+        self.bbox_x = 0.5            # x位置
+        self.bbox_y = 0.96           # y位置
 
         self.title = 'Fault Types'
         self.title_fontweight = 'bold'
+        self.show_title = False      # 是否显示图例标题
 
         self.frameon = True
         self.frame_alpha = 0.95
@@ -356,9 +357,10 @@ class LegendConfig:
         self.borderpad = 0.8
         self.labelspacing = 0.6
         self.handletextpad = 0.5
+        self.columnspacing = 1.5     # 列间距
 
-        # 列数（用于底部图例）
-        self.ncol = 1
+        # 列数（用于顶部/底部图例，None表示自动等于类别数）
+        self.ncol = None
 
 
 class TitleConfig:
@@ -552,7 +554,8 @@ def plot_comparison_grid(
             out_path = f"{base_path}.png"
             plt.savefig(
                 out_path,
-                dpi=config.figure.dpi,
+                # dpi=config.figure.dpi,
+                dpi=600,
                 bbox_inches='tight',
                 facecolor=config.figure.background_color,
                 edgecolor='none',
@@ -673,41 +676,51 @@ def _add_legend(fig, labels_list, palette, config: PlotConfig):
             )
         )
 
-    # 确定图例位置
-    if config.legend.position == 'right':
+    # 确定图例位置和列数
+    ncol = config.legend.ncol if config.legend.ncol else len(unique_labels)
+
+    if config.legend.position == 'top':
+        loc = 'lower center'
+        bbox = (config.legend.bbox_x, config.legend.bbox_y)
+    elif config.legend.position == 'right':
         loc = 'center left'
         bbox = (config.legend.bbox_x, config.legend.bbox_y)
-        ncol = config.legend.ncol
+        ncol = 1 if config.legend.ncol is None else config.legend.ncol
     elif config.legend.position == 'bottom':
         loc = 'upper center'
         bbox = (0.5, -0.05)
-        ncol = len(unique_labels)
     else:
         loc = 'center left'
         bbox = (config.legend.bbox_x, config.legend.bbox_y)
-        ncol = config.legend.ncol
 
     # 添加图例
-    legend = fig.legend(
+    legend_kwargs = dict(
         handles=legend_elements,
         loc=loc,
         bbox_to_anchor=bbox,
-        title=config.legend.title,
         frameon=config.legend.frameon,
         fontsize=config.font.legend_size,
-        title_fontsize=config.font.legend_title_size,
         framealpha=config.legend.frame_alpha,
         edgecolor=config.legend.frame_edgecolor,
         fancybox=config.legend.fancybox,
         borderpad=config.legend.borderpad,
         labelspacing=config.legend.labelspacing,
         handletextpad=config.legend.handletextpad,
+        columnspacing=config.legend.columnspacing,
         ncol=ncol
     )
 
+    # 是否显示图例标题
+    if config.legend.show_title:
+        legend_kwargs['title'] = config.legend.title
+        legend_kwargs['title_fontsize'] = config.font.legend_title_size
+
+    legend = fig.legend(**legend_kwargs)
+
     # 设置图例字体
-    legend.get_title().set_fontfamily(config.font.family)
-    legend.get_title().set_fontweight(config.legend.title_fontweight)
+    if config.legend.show_title and legend.get_title():
+        legend.get_title().set_fontfamily(config.font.family)
+        legend.get_title().set_fontweight(config.legend.title_fontweight)
     for text in legend.get_texts():
         text.set_fontfamily(config.font.family)
 
@@ -852,7 +865,7 @@ def main():
     config.font.family = 'Times New Roman'
     config.font.title_size = 14
     config.font.label_size = 16
-    config.font.legend_size = 10
+    config.font.legend_size = 14
     config.font.weight = 'bold'
 
     # ----- 图形尺寸 -----
@@ -882,12 +895,15 @@ def main():
 
     # ----- 图例 -----
     config.legend.show = True
-    config.legend.position = 'right'  # 'right', 'bottom'
+    config.legend.position = 'top'    # 'top', 'right', 'bottom'
+    config.legend.show_title = False  # 顶部图例不显示标题更简洁
     config.legend.title = 'Fault Types'
     config.legend.marker_size = 8
+    config.legend.ncol = None         # None表示自动一行显示所有类别
+    config.legend.columnspacing = 1.0
 
     # ----- 标题 -----
-    config.title.show_suptitle = True
+    config.title.show_suptitle = False
     config.title.row_labels = ['Teacher', 'CTSL']
     config.title.auto_title_format = '{wc} ({tag})'  # 自动标题格式
     config.title.train_tag = 'Train'
@@ -896,17 +912,18 @@ def main():
     config.title.target_tag = 'Target'
 
     # 自定义每个子图标题（可选，设为None则自动生成）
-    # config.title.subplot_titles = [
-    #     ['WC1 (Train)', 'WC2 (Unseen)', 'WC3 (Unseen)', 'WC4 (Unseen)'],  # 第一行
-    #     ['WC1 (Source)', 'WC2 (Target)', 'WC3 (Target)', 'WC4 (Unseen)']   # 第二行
-    # ]
+    config.title.subplot_titles = [
+        ['Benign', 'Defense Optimization', 'Generalization Simulation', 'Unseen Attack'],  # 第一行
+        ['Benign', 'Defense Optimization', 'Generalization Simulation', 'Unseen Attack']  # 第二行
+    ]
 
     # ----- 类别标签 -----
-    # config.labels.class_names = {
-    #     0: 'Normal', 1: 'IF', 2: 'OF', 3: 'BF',
-    #     4: 'IF+OF', 5: 'IF+BF', 6: 'OF+BF', 7: 'IF+OF+BF'
-    # }
-    config.labels.default_format = 'Class {}'
+    config.labels.class_names = {
+        0: 'K001', 1: 'KA15', 2: 'KA04', 3: 'KI18',
+        4: 'KI21', 5: 'KB27', 6: 'KB23', 7: 'KB24'
+    }
+    # config.labels.default_format = 'Class {}'
+
 
     # =========================================================================
 

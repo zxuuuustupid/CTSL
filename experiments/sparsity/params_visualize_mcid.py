@@ -215,8 +215,8 @@ def main(config_path):
         print(f"Epoch [{epoch}/{epochs}] - MID Sparsity Index: {current_sparsity:.4f}")
 
     # 5. 保存结果
-    data_save_path = "experiments/sparsity/PU124/sparsity_data_mid.npy"
-    plot_save_path = "experiments/sparsity/PU124/sparsity_curve_mid.png"
+    data_save_path = "experiments/sparsity/PU234/sparsity_data_mid.npy"
+    plot_save_path = "experiments/sparsity/PU234/sparsity_curve_mid.png"
 
     np.save(data_save_path, np.array(sparsity_history))
 
@@ -238,6 +238,6 @@ def main(config_path):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--config", type=str, default="configs/mcid_PU_train_1_meta_2_4.yaml")
+    parser.add_argument("--config", type=str, default="configs/mcid_PU_train_2_meta_3_4.yaml")
     args = parser.parse_args()
     main(args.config)

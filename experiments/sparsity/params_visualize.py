@@ -17,6 +17,8 @@ from src.models.encoder import MechanicEncoder
 from src.models.decoder import MechanicDecoder
 from src.models.classifier import MechanicClassifier
 
+
+task="PU234"  # 可修改为 PU124 或 PU1234 等，根据需要选择任务
 # ================= 核心工具函数 =================
 
 def load_config(config_path):
@@ -141,8 +143,8 @@ def main(config_path):
         print(f"Epoch [{epoch}/{epochs}] - Encoder Param Norm: {current_sparsity:.4f}")
 
     # 6. 可视化并保存结果
-    plot_save_path = "experiments/sparsity/PU124/sparsity_curve_baseline.png"
-    data_save_path = "experiments/sparsity/PU124/sparsity_data_baseline.npy"
+    plot_save_path = f"experiments/sparsity/{task}/sparsity_curve_baseline.png"
+    data_save_path = f"experiments/sparsity/{task}/sparsity_data_baseline.npy"
 
     # 保存数据以便后续对比
     np.save(data_save_path, np.array(sparsity_history))
@@ -167,6 +169,6 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     # parser.add_argument("--config", type=str, default="configs/teacher.yaml")
 
-    parser.add_argument("--config", type=str, default="configs/teacher_PU_train_1.yaml")
+    parser.add_argument("--config", type=str, default="configs/teacher_PU_train_2.yaml")
     args = parser.parse_args()
     main(args.config)

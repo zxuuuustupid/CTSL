@@ -1,6 +1,6 @@
 """
 三元热图可视化 - 损失函数权重对准确率的影响
-简洁版 - 顶刊风格 (修复坐标轴逻辑顺序)
+简洁版 - 顶刊风格
 """
 
 import os
@@ -20,7 +20,7 @@ plt.rcParams.update({
 
 
 def ternary_to_cartesian(a, b, c):
-    """三元坐标转笛卡尔坐标（标准实现）"""
+    """三元坐标转笛卡尔坐标"""
     total = a + b + c
     if total == 0:
         return 0.5, np.sqrt(3) / 6
@@ -45,7 +45,7 @@ def in_triangle(x, y):
 
 
 def plot_ternary_heatmap(csv_path: str, save_path: str = None):
-    """绘制简洁版三元热图（修复坐标轴逻辑顺序）"""
+    """绘制简洁版三元热图"""
 
     # 读取数据
     df = pd.read_csv(csv_path)
@@ -99,25 +99,25 @@ def plot_ternary_heatmap(csv_path: str, save_path: str = None):
     ax.scatter(x_coords, y_coords, c='white', s=8, edgecolors='gray',
                linewidths=0.3, alpha=0.5, zorder=5)
 
-    # # 最优点
-    # best_idx = np.argmax(accuracy)
-    # ax.scatter(x_coords[best_idx], y_coords[best_idx],
-    #            facecolors='none', edgecolors='k', s=100, linewidths=1.5, zorder=6)
+    # 最优点
+    best_idx = np.argmax(accuracy)
+    ax.scatter(x_coords[best_idx], y_coords[best_idx],
+               facecolors='none', edgecolors='k', s=100, linewidths=1.5, zorder=6)
 
-    # # 标注最优点的取值（显示归一化后的 λ 权重，保证与三元坐标一致）
-    # label_text = (
-    #     f'{accuracy[best_idx]:.2f}%\n'
-    #     f'(λ_ac, λ_cc, λ_lc) = '
-    #     f'({ac_norm[best_idx]:.2f}, {cc_norm[best_idx]:.2f}, {lc_norm[best_idx]:.2f})'
-    # )
-    # ax.annotate(label_text,
-    #             xy=(x_coords[best_idx], y_coords[best_idx]),
-    #             xytext=(x_coords[best_idx] - 0.20, y_coords[best_idx] + 0.12),
-    #             fontsize=8, ha='center', va='bottom',
-    #             bbox=dict(facecolor='white', edgecolor='k', linewidth=0.8, pad=2),
-    #             arrowprops=dict(arrowstyle='-', color='k', lw=0.6))
+    # 标注最优点的取值（显示归一化后的 λ 权重，保证与三元坐标一致）
+    label_text = (
+        f'{accuracy[best_idx]:.2f}%\n'
+        f'(λ_ac, λ_cc, λ_lc) = '
+        f'({ac_norm[best_idx]:.2f}, {cc_norm[best_idx]:.2f}, {lc_norm[best_idx]:.2f})'
+    )
+    ax.annotate(label_text,
+                xy=(x_coords[best_idx], y_coords[best_idx]),
+                xytext=(x_coords[best_idx] - 0.20, y_coords[best_idx] + 0.12),
+                fontsize=8, ha='center', va='bottom',
+                bbox=dict(facecolor='white', edgecolor='k', linewidth=0.8, pad=2),
+                arrowprops=dict(arrowstyle='-', color='k', lw=0.6))
 
-    # 顶点标签（逆时针顺序：λ_ac → λ_cc → λ_lc）
+    # 顶点标签
     ax.text(-0.06, -0.06, '$\\lambda_{ac}$', fontsize=12, ha='center', va='center')
     ax.text(1.06, -0.06, '$\\lambda_{cc}$', fontsize=12, ha='center', va='center')
     ax.text(0.5, np.sqrt(3)/2 + 0.06, '$\\lambda_{lc}$', fontsize=12, ha='center', va='center')
@@ -135,25 +135,25 @@ def plot_ternary_heatmap(csv_path: str, save_path: str = None):
     def _fmt_val(v: float) -> str:
         return f"{v:.1f}"
 
-    # 修复：三条边刻度标注形成正确循环（λ_cc → λ_lc → λ_ac）
+    # 在三条边外侧标注“纯数字”真实刻度值（无 ac/cc/lc 前缀）
     n_ticks = 5
     for i in range(1, n_ticks):
         t = i / n_ticks
         val = t * tick_total
         txt = _fmt_val(val)
 
-        # 底边（λ_lc = 0）：标注 λ_cc 从 0 → max（左→右递增）
+        # 底边（对应 lc）
         ax.text(t, -0.045, txt, fontsize=8, ha='center', va='top', color='#444')
 
-        # 右边（λ_ac = 0）：标注 λ_lc 从 0 → max（下→上递增）
-        x, y = ternary_to_cartesian(0, 1 - t, t)  # λ_lc = t
-        ax.text(x + 0.055, y, txt, fontsize=8, ha='left', va='center', color='#444')
-
-        # 左边（λ_cc = 0）：标注 λ_ac 从 0 → max（上→下递增，关键修复！）
-        x, y = ternary_to_cartesian(t, 0, 1 - t)  # λ_ac = t，t增大时从顶部移向左下
+        # 左边（对应 cc）
+        x, y = ternary_to_cartesian(1 - t, 0, t)
         ax.text(x - 0.055, y, txt, fontsize=8, ha='right', va='center', color='#444')
 
-    # 网格线（保持原逻辑）
+        # 右边（对应 ac）
+        x, y = ternary_to_cartesian(0, 1 - t, t)
+        ax.text(x + 0.055, y, txt, fontsize=8, ha='left', va='center', color='#444')
+
+    # 网格线
     n_ticks = 5
     for i in range(1, n_ticks):
         t = i / n_ticks
