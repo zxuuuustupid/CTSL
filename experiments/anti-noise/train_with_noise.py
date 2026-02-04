@@ -29,8 +29,8 @@ from src.models.classifier import MechanicClassifier
 OUTPUT_DIR = os.path.dirname(os.path.abspath(__file__))
 
 # 训练噪声等级
-TRAIN_SNR_LEVELS = [None, 50,20,15,10, 8, 5]  # None表示无噪声
-
+# TRAIN_SNR_LEVELS = [None, 50,20,15,10, 8, 5]  # None表示无噪声
+TRAIN_SNR_LEVELS = [None, 10,9,8,7,6, 5]  # None表示无噪声
 
 def add_gaussian_noise(signal, snr_db):
     """添加高斯白噪声"""
@@ -189,7 +189,7 @@ def inner_update(encoder, loss, inner_lr, first_order=True):
 
 def meta_train_step_with_noise(source_iter, target_iters, encoder_s, classifier,
                                 encoder_t, decoder_t, config, device, train_snr):
-    """带噪声的元训练步骤"""
+    """带噪声的元训练步骤（只对随机一个工况加噪声）"""
     meta_cfg = config['meta']
     wc_list = list(target_iters.keys())
     random.shuffle(wc_list)
@@ -197,13 +197,18 @@ def meta_train_step_with_noise(source_iter, target_iters, encoder_s, classifier,
     query_wc = wc_list[-1]
     support_wcs = wc_list[:-1]
 
+    # 随机选择一个工况加噪声（可以是 support 或 query）
+    all_wcs = support_wcs + [query_wc]
+    noise_wc = random.choice(all_wcs)
+
     total_sup_loss = 0
 
     for wc in support_wcs:
         x_s, y_s = next(target_iters[wc])
         x_s, y_s = x_s.to(device), y_s.to(device)
-        # 添加训练噪声
-        x_s = add_gaussian_noise(x_s, train_snr)
+        # 只对选中的工况添加噪声
+        if wc == noise_wc:
+            x_s = add_gaussian_noise(x_s, train_snr)
 
         x_t, y_t = next(source_iter)
         x_t, y_t = x_t.to(device), y_t.to(device)
@@ -224,8 +229,9 @@ def meta_train_step_with_noise(source_iter, target_iters, encoder_s, classifier,
 
     x_q_s, y_q_s = next(target_iters[query_wc])
     x_q_s, y_q_s = x_q_s.to(device), y_q_s.to(device)
-    # 添加训练噪声
-    x_q_s = add_gaussian_noise(x_q_s, train_snr)
+    # 只对选中的工况添加噪声
+    if query_wc == noise_wc:
+        x_q_s = add_gaussian_noise(x_q_s, train_snr)
 
     x_q_t, y_q_t = next(source_iter)
     x_q_t, y_q_t = x_q_t.to(device), y_q_t.to(device)
