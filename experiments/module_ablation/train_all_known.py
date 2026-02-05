@@ -358,7 +358,7 @@ def main(config_path):
 
     print("开始消融实验训练 (All Known)...")
 
-    for epoch in range(1, config['training']['epochs'] + 1):
+    for epoch in range(1, 10 + 1):
         encoder_s.train()
 
         total_loss, total_train, total_val = 0, 0, 0
@@ -388,7 +388,7 @@ def main(config_path):
               f"Train={total_train/iterations_per_epoch:.4f}, "
               f"Val={total_val/iterations_per_epoch:.4f}")
 
-        if epoch % 1 == 0:
+        if epoch % 5 == 0:
             print(f"Epoch {epoch} 评估:")
             avg_acc = evaluate(encoder_s, classifier, config, device, metric_recorder)
 

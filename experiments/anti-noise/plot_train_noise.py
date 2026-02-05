@@ -127,7 +127,7 @@ def plot_train_noise_bar(csv_path, method_name="S-MID", save_name=None):
     ax.set_xticklabels(snr_levels)
 
     y_min = max(0, min(accuracies) - 15)
-    ax.set_ylim(y_min, 105)
+    ax.set_ylim(y_min, 96)
 
     ax.grid(True, axis='y', linestyle='--', alpha=0.4, zorder=0)
     ax.set_axisbelow(True)

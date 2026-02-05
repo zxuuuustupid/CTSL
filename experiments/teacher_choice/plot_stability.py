@@ -159,10 +159,10 @@ def plot_teacher_stability_reverse_order():
     # --- 5. 保存 ---
     save_name = 'teacher_stability_reverse_order'
     png_path = os.path.join(OUTPUT_DIR, f'{save_name}.png')
-    pdf_path = os.path.join(OUTPUT_DIR, f'{save_name}.pdf')
+    pdf_path = os.path.join(OUTPUT_DIR, f'{save_name}.svg')
 
     plt.savefig(png_path, format='png', bbox_inches='tight', dpi=300)
-    plt.savefig(pdf_path, format='pdf', bbox_inches='tight')
+    plt.savefig(pdf_path, format='svg', bbox_inches='tight')
     plt.close()
     print(f"逆序逻辑版已保存至: {png_path}")
 

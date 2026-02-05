@@ -80,13 +80,30 @@ def plot_ternary_heatmap(csv_path: str, save_path: str = None):
             if not in_triangle(Xi[j, i], Yi[j, i]):
                 Zi[j, i] = np.nan
 
-    # 配色 - 柔和自然的绿黄红渐变
-    colors = ['#1a9850', '#66bd63', '#a6d96a', '#d9ef8b', '#ffffbf',
-              '#fee08b', '#fdae61', '#f46d43', '#d73027']
-    cmap = LinearSegmentedColormap.from_list('RdYlGn_r', colors, N=256)
-    # 使用中位数作为色阶中心，让红绿占比更均衡
+    # # 配色 - 柔和自然的绿黄红渐变
+    # colors = ['#1a9850', '#66bd63', '#a6d96a', '#d9ef8b', '#ffffbf',
+    #           '#fee08b', '#fdae61', '#f46d43', '#d73027']
+    # cmap = LinearSegmentedColormap.from_list('RdYlGn_r', colors, N=256)
+    # # 使用中位数作为色阶中心，让红绿占比更均衡
+    # vcenter = np.median(accuracy)
+    # norm = TwoSlopeNorm(vmin=accuracy.min(), vcenter=vcenter, vmax=accuracy.max())
+
+
+#     # 配色 - 柔和自然的绿黄红渐变
+# # [方案一] 配色 - IEEE/顶级期刊常用 Plasma 色系
+#     # 特点：感知均匀，色盲友好，高对比度。深色表示低准确率，亮黄色表示高准确率。
+#     # 这种渐变不需要 TwoSlopeNorm，直接使用线性映射即可展现丰富细节。
+#     cmap = plt.get_cmap('plasma')
+#     norm = plt.Normalize(vmin=accuracy.min(), vmax=accuracy.max())
+
+
+# [方案二] 配色 - 经典的蓝红发散 Coolwarm 色系
+    # 特点：专业严谨，冷暖对比清晰。适合强调相对于平均水平的偏差。
+    cmap = plt.get_cmap('coolwarm')
+    # 保留原有的 TwoSlopeNorm 以中位数为中心
     vcenter = np.median(accuracy)
     norm = TwoSlopeNorm(vmin=accuracy.min(), vcenter=vcenter, vmax=accuracy.max())
+
 
     # 绘制热图 - 使用更多levels实现平滑过渡
     contourf = ax.contourf(Xi, Yi, Zi, levels=100, cmap=cmap, norm=norm)

@@ -2,8 +2,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 # 1. 准备数据
-cases = ['1', '2', '3', '4', '5', '6', '7', '8']
-accuracies = [93.3, 91.1, 86.8, 88.4, 87.3, 67.3, 62.4, 47.9]
+cases = ['0', '2', '4', '6', '8', '10', '12', '14']
+accuracies = [93.9, 91.1, 86.8, 88.4, 87.3, 67.3, 62.4, 47.9]
 
 # 2. 设置绘图环境 (强制使用 Times New Roman)
 plt.rcParams['font.family'] = 'serif'
@@ -35,15 +35,15 @@ for i, acc in enumerate(accuracies):
 ax.axvline(x=4.5, color='#666666', linestyle='--', linewidth=1.2, alpha=0.8, zorder=2)
 
 # 阶段性文字标注
-ax.text(2, 96, 'Class-Balanced/Imbalanced\n(All Classes Known)',
+ax.text(2, 96, 'Attack domain is class-complete\nand locally imbalanced',
         ha='center', va='bottom', fontsize=10, fontweight='bold', color='#003366')
-ax.text(6, 78, 'Partial Class Missing\n(Teacher-Only Classes)',
+ax.text(6, 96, 'Attack domain is class-incomplete\nand globally imbalanced',
         ha='center', va='bottom', fontsize=10, fontweight='bold', color='#990000')
 
 # 坐标轴标签和范围
 ax.set_ylim(40, 105) # 稍微调高上限给文字留空
 ax.set_ylabel('Accuracy (%)', fontsize=12, fontweight='bold')
-ax.set_xlabel('Degree of Source Domain Imbalance', fontsize=12, fontweight='bold')
+ax.set_xlabel('Num of Missing Classes', fontsize=12, fontweight='bold')
 
 # 移除冗余边框
 ax.spines['top'].set_visible(False)

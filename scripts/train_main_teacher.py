@@ -462,7 +462,7 @@ def main(config_path):
     print("开始 MCID 元学习训练...")
 
     # for epoch in range(1, config['training']['epochs'] + 1):
-    for epoch in range(1, 10 + 1):
+    for epoch in range(1, 20 + 1):
 
         encoder_s.train()
         # classifier.train()
