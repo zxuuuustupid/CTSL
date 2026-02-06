@@ -142,7 +142,7 @@ import random
 
 # ================= 核心配置区域 =================
 RAW_DATA_ROOT = r"F:\Project\mid\Fed_all_csv_3ch"
-OUTPUT_ROOT = r"F:\Project\mid\S-MID\data\Fed"
+OUTPUT_ROOT = r"F:\Project\mid\S-MID\data1\Fed"
 
 FAULT_TYPE_MAP = {
     "Normal": 0,

@@ -19,9 +19,9 @@ plt.rcParams.update({
     'mathtext.fontset': 'stix',
     'font.size': 10.5,
     'axes.linewidth': 1.0,        # 坐标轴线宽
-    'axes.labelsize': 11,         # 轴标题字号
-    'xtick.labelsize': 10,        # X轴刻度字号
-    'ytick.labelsize': 10,        # Y轴刻度字号
+    'axes.labelsize': 12,         # 轴标题字号
+    'xtick.labelsize': 11,        # X轴刻度字号
+    'ytick.labelsize': 11,        # Y轴刻度字号
     'xtick.direction': 'in',      # 刻度朝内
     'ytick.direction': 'in',      # 刻度朝内
     'xtick.major.size': 4,        # 刻度线长度
@@ -71,15 +71,15 @@ for bar, acc in zip(bars, accuracies):
                 xytext=xy_text,
                 textcoords="offset points",
                 ha='center', va='bottom',
-                fontsize=9,
+                fontsize=11,
                 color='black',
                 # fontweight='normal'
                 fontweight='bold'
                 ) # 保持字体清爽，不必粗体
 
 # 6. 坐标轴精细设置
-ax.set_ylabel('Accuracy (%)', labelpad=8)
-ax.set_xlabel('Number of Source Domains', labelpad=8)
+ax.set_ylabel('Accuracy (%)', labelpad=8, fontweight='bold')
+ax.set_xlabel('Number of Source Domains', labelpad=8, fontweight='bold')
 
 # Y轴范围控制：给予上方一定留白
 y_min = 92
@@ -111,4 +111,5 @@ plt.savefig(svg_path, format='svg', bbox_inches='tight')
 plt.savefig(pdf_path, format='pdf', bbox_inches='tight')
 
 print(f"Figure saved to:\n- {svg_path}\n- {pdf_path}")
-plt.show()
+# plt.show()
+plt.close()

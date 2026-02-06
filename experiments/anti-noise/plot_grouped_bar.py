@@ -13,10 +13,10 @@ from matplotlib.ticker import MultipleLocator
 matplotlib.rcParams.update({
     'font.family': 'Times New Roman',
     'font.size': 11,
-    'axes.labelsize': 14,
-    'axes.titlesize': 12,
-    'xtick.labelsize': 10,
-    'ytick.labelsize': 10,
+    'axes.labelsize': 16,
+    'axes.titlesize': 14,
+    'xtick.labelsize': 12,
+    'ytick.labelsize': 12,
     'legend.fontsize': 14,
     'figure.dpi': 300,
     'savefig.dpi': 300,
@@ -345,7 +345,7 @@ def plot_grouped_bar(data_dict, snr_labels, save_name="grouped_comparison"):
 
     all_accs = [acc for accs in data_dict.values() for acc in accs]
     y_min = max(0, min(all_accs) - 10)
-    y_max = min(115, max(all_accs) + 20)
+    y_max = min(104, max(all_accs) + 20)
     ax.set_ylim(y_min, y_max)
 
     ax.grid(True, axis='y', linestyle='--', alpha=0.4, zorder=0)

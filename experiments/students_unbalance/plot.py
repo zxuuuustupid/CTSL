@@ -28,7 +28,7 @@ for i, acc in enumerate(accuracies):
     # 根据数据点位置自动调整偏移，防止文字重叠
     offset = 1.5 if acc > 60 else 2.5
     ax.text(i, acc + offset, f'{acc:.1f}', ha='center', va='bottom',
-            fontsize=10, fontweight='bold', color='#003366', zorder=6)
+            fontsize=14, fontweight='bold', color='#003366', zorder=6)
 
 # 6. 精细化修饰
 # 添加中间的分界虚线
@@ -36,14 +36,15 @@ ax.axvline(x=4.5, color='#666666', linestyle='--', linewidth=1.2, alpha=0.8, zor
 
 # 阶段性文字标注
 ax.text(2, 96, 'Attack domain is class-complete\nand locally imbalanced',
-        ha='center', va='bottom', fontsize=10, fontweight='bold', color='#003366')
-ax.text(6, 96, 'Attack domain is class-incomplete\nand globally imbalanced',
-        ha='center', va='bottom', fontsize=10, fontweight='bold', color='#990000')
+        ha='center', va='bottom', fontsize=14, fontweight='bold', color='#003366')
+ax.text(6, 93, 'Attack domain\nis class-incomplete\nand globally imbalanced',
+        ha='center', va='bottom', fontsize=14, fontweight='bold', color='#990000')
 
 # 坐标轴标签和范围
 ax.set_ylim(40, 105) # 稍微调高上限给文字留空
-ax.set_ylabel('Accuracy (%)', fontsize=12, fontweight='bold')
-ax.set_xlabel('Num of Missing Classes', fontsize=12, fontweight='bold')
+ax.tick_params(axis='both', labelsize=14)  # 修改刻度字体大小
+ax.set_ylabel('Accuracy (%)', fontsize=16, fontweight='bold')
+ax.set_xlabel('Num of Missing Classes', fontsize=16, fontweight='bold')
 
 # 移除冗余边框
 ax.spines['top'].set_visible(False)
@@ -57,6 +58,7 @@ ax.set_axisbelow(True)
 plt.tight_layout()
 plt.savefig('experiments/students_unbalance/imbalance_impact_with_values.svg', format='svg', bbox_inches='tight')
 plt.savefig('experiments/students_unbalance/imbalance_impact_with_values.pdf', format='pdf', bbox_inches='tight')
-plt.show()
+# plt.show()
+plt.close()
 
 print("包含数据标注的高级趋势图已保存。")

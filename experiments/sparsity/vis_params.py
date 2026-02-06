@@ -17,7 +17,7 @@ for task in task_list:
             'font.family': 'serif',
             'font.serif': ['Times New Roman'],  # 强制衬线字体为新罗马
             'mathtext.fontset': 'stix',         # 数学公式字体接近 Times
-            'font.size': 14,                    # 全局基础字号
+            'font.size': 18,                    # 全局基础字号
 
             # 线条与轴
             'axes.linewidth': 1.5,              # 坐标轴线宽
@@ -75,8 +75,8 @@ for task in task_list:
     ax.grid(True, which='major', linestyle='--', linewidth=0.75, color='gray', alpha=0.3, zorder=0)
 
     # 2. 坐标轴标签 (使用 LaTeX 格式增强数学符号美感，如果没有装LaTeX环境会自动回退到stix字体)
-    ax.set_xlabel('Training Epochs', fontsize=16, fontweight='bold', labelpad=10)
-    ax.set_ylabel(r'Norm of Parameters ($\|\theta\|_2^2$)', fontsize=16, fontweight='bold', labelpad=10)
+    ax.set_xlabel('Training Epochs', fontsize=22, fontweight='bold', labelpad=10)
+    ax.set_ylabel(r'Norm of Parameters ($\|\theta\|_2^2$)', fontsize=22, fontweight='bold', labelpad=10)
 
     # 3. 标题 (可选，正式发Paper时通常写在LaTeX的caption里，这里为了完整性加上)
     # ax.set_title('Comparison of Model Sparsity', fontsize=18, pad=15)
@@ -89,7 +89,7 @@ for task in task_list:
 
     # 5. 图例优化
     # loc='upper left' 将图例移动到左上角
-    legend = ax.legend(fontsize=14, loc='upper left', shadow=False)
+    legend = ax.legend(fontsize=20, loc='upper left', shadow=False)
     legend.get_frame().set_linewidth(1.0)
 
     # 6. 填充区域 (可选：增加视觉层次感，显示差异)
